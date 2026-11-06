@@ -1,0 +1,433 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  name          String
+  role          Role      @default(VIEWER)
+  avatar        String?
+  phone         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  properties    Property[]
+  leads         Lead[]
+  deals         Deal[]
+  activities    Activity[]
+  @@map("users")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  AGENT
+  VIEWER
+}
+
+model Property {
+  id              String    @id @default(uuid())
+  title           String
+  description     String    @db.Text
+  propertyType    PropertyType
+  status          PropertyStatus @default(AVAILABLE)
+  price           Float
+  bedrooms        Int
+  bathrooms       Int
+  area            Float
+  address         String
+  city            String
+  state           String
+  zipCode         String
+  country         String    @default("USA")
+  latitude        Float?
+  longitude       Float?
+  images          String[]
+  virtualTour     String?
+  features        String[]
+  yearBuilt       Int?
+  parking         Int?
+  agentId         String
+  agent           User      @relation(fields: [agentId], references: [id])
+  featured        Boolean   @default(false)
+  views           Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  leads           Lead[]
+  @@map("properties")
+}
+
+enum PropertyType {
+  HOUSE
+  APARTMENT
+  CONDO
+  TOWNHOUSE
+  VILLA
+  LAND
+  COMMERCIAL
+}
+
+enum PropertyStatus {
+  AVAILABLE
+  PENDING
+  SOLD
+  RENTED
+}
+
+model Lead {
+  id            String    @id @default(uuid())
+  name          String
+  email         String
+  phone         String
+  message       String    @db.Text
+  propertyId    String?
+  property      Property? @relation(fields: [propertyId], references: [id])
+  status        LeadStatus @default(NEW)
+  score         Int?
+  source        String    @default("website")
+  assignedToId  String?
+  assignedTo    User?     @relation(fields: [assignedToId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deal          Deal?
+  @@map("leads")
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  NEGOTIATING
+  CONVERTED
+  LOST
+}
+
+model Deal {
+  id            String    @id @default(uuid())
+  leadId        String    @unique
+  lead          Lead      @relation(fields: [leadId], references: [id])
+  amount        Float
+  stage         DealStage @default(PROPOSAL)
+  probability   Int       @default(50)
+  expectedClose DateTime?
+  agentId       String
+  agent         User      @relation(fields: [agentId], references: [id])
+  notes         String?   @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  closedAt      DateTime?
+  @@map("deals")
+}
+
+enum DealStage {
+  PROPOSAL
+  NEGOTIATION
+  CONTRACT
+  CLOSING
+  WON
+  LOST
+}
+
+model AIProvider {
+  id            String    @id @default(uuid())
+  name          String
+  type          AIProviderType
+  apiKey        String
+  status        ProviderStatus @default(ACTIVE)
+  models        String[]
+  tokensUsed    Int       @default(0)
+  cost          Float     @default(0)
+  requests      Int       @default(0)
+  lastChecked   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  templates     PromptTemplate[]
+  @@map("ai_providers")
+}
+
+enum AIProviderType {
+  OPENAI
+  CLAUDE
+  GEMINI
+  GROQ
+  OPENROUTER
+  GROK
+}
+
+enum ProviderStatus {
+  ACTIVE
+  INACTIVE
+  ERROR
+}
+
+model PromptTemplate {
+  id            String    @id @default(uuid())
+  name          String
+  description   String
+  content       String    @db.Text
+  variables     String[]
+  providerId    String
+  provider      AIProvider @relation(fields: [providerId], references: [id])
+  model         String
+  version       Int       @default(1)
+  assignedTo    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  @@map("prompt_templates")
+}
+
+model Activity {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  action        String
+  module        ActivityModule
+  details       String    @db.Text
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+  @@map("activities")
+}
+
+enum ActivityModule {
+  CMS
+  CRM
+  AI
+  USERS
+  SYSTEM
+}
+
+model Subscription {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  status        SubscriptionStatus @default(ACTIVE)
+  plan          String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  @@map("subscriptions")
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  CANCELLED
+}
+
+model Testimonial {
+  id            String    @id @default(uuid())
+  name          String
+  role          String
+  company       String?
+  content       String    @db.Text
+  rating        Int       @default(5)
+  avatar        String?
+  featured      Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  @@map("testimonials")
+}
+
+model ContactInquiry {
+  id            String    @id @default(uuid())
+  name          String
+  email         String
+  phone         String?
+  subject       String
+  message       String    @db.Text
+  status        InquiryStatus @default(NEW)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  @@map("contact_inquiries")
+}
+
+enum InquiryStatus {
+  NEW
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model BlogPost {
+  id              String    @id @default(uuid())
+  title           String
+  slug            String    @unique
+  content         String    @db.Text
+  excerpt         String?   @db.Text
+  featuredImage   String?
+  images          String[]
+  tags            String[]
+  category        String
+  status          PostStatus @default(DRAFT)
+  publishedAt     DateTime?
+  scheduledFor    DateTime?
+  authorId        String?
+  aiGenerated     Boolean   @default(false)
+  aiProviderId    String?
+  noveltyScore    Float?
+  qualityScore    Float?
+  plagiarismScore Float?
+  views           Int       @default(0)
+  likes           Int       @default(0)
+  shares          Int       @default(0)
+  metadata        Json?
+  seoTitle        String?
+  seoDescription  String?
+  seoKeywords     String[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  @@map("blog_posts")
+}
+
+enum PostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+model ContentSource {
+  id              String    @id @default(uuid())
+  name            String
+  type            SourceType
+  url             String
+  apiKey          String?
+  enabled         Boolean   @default(true)
+  priority        Int       @default(0)
+  filters         Json?
+  lastFetchedAt   DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  @@map("content_sources")
+}
+
+enum SourceType {
+  RSS
+  NEWS_API
+  YOUTUBE
+  TWITTER
+  TIKTOK
+  REDDIT
+  CUSTOM
+}
+
+model ContentTopic {
+  id              String    @id @default(uuid())
+  title           String
+  description     String?   @db.Text
+  keywords        String[]
+  sourceUrls      String[]
+  noveltyScore    Float?
+  trendingScore   Float?
+  menaRelevance   Float?
+  status          TopicStatus @default(PENDING)
+  researchData    Json?
+  generatedPostId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  @@map("content_topics")
+}
+
+enum TopicStatus {
+  PENDING
+  RESEARCHING
+  READY
+  GENERATING
+  COMPLETED
+  FAILED
+}
+
+model AIUsageLog {
+  id              String    @id @default(uuid())
+  providerId      String
+  model           String
+  operation       String
+  tokensUsed      Int
+  cost            Float
+  duration        Int?
+  success         Boolean   @default(true)
+  errorMessage    String?
+  metadata        Json?
+  createdAt       DateTime  @default(now())
+  @@map("ai_usage_logs")
+}
+
+model SocialPost {
+  id              String    @id @default(uuid())
+  blogPostId      String?
+  platform        SocialPlatform
+  content         String    @db.Text
+  mediaUrls       String[]
+  status          SocialPostStatus @default(PENDING)
+  scheduledFor    DateTime?
+  publishedAt     DateTime?
+  engagement      Json?
+  errorMessage    String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  @@map("social_posts")
+}
+
+enum SocialPlatform {
+  TWITTER
+  TIKTOK
+  SNAPCHAT
+  LINKEDIN
+  FACEBOOK
+  INSTAGRAM
+}
+
+enum SocialPostStatus {
+  PENDING
+  SCHEDULED
+  PUBLISHED
+  FAILED
+}
+
+model MonetizationConfig {
+  id              String    @id @default(uuid())
+  strategy        String
+  priority        Int
+  enabled         Boolean   @default(false)
+  config          Json
+  revenue         Float     @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  @@map("monetization_configs")
+}
+
+model BatchJob {
+  id              String    @id @default(uuid())
+  type            JobType
+  status          JobStatus @default(PENDING)
+  scheduledFor    DateTime
+  startedAt       DateTime?
+  completedAt     DateTime?
+  data            Json?
+  result          Json?
+  errorMessage    String?   @db.Text
+  retryCount      Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  @@map("batch_jobs")
+}
+
+enum JobType {
+  CONTENT_RESEARCH
+  ARTICLE_GENERATION
+  QUALITY_CHECK
+  PUBLISH
+  SOCIAL_DISTRIBUTION
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  RETRYING
+}
